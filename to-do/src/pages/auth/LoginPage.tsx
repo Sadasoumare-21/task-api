@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTaskContext } from '../../context/TaskContext'
+import axios from 'axios' // 1. On importe Axios
 
 function InputField({ label, type='text', icon, placeholder, value, onChange, error, extra }:
   { label:string; type?:string; icon:string; placeholder:string; value:string; onChange:(v:string)=>void; error?:string; extra?:React.ReactNode }) {
@@ -29,6 +30,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(false)
+  const [apiError, setApiError] = useState('') // Pour afficher les erreurs du serveur (ex: Identifiants incorrects)
 
   const validate = () => {
     const e: Record<string,string> = {}
@@ -38,9 +40,40 @@ export default function LoginPage() {
   }
 
   const handleSubmit = async (ev: React.FormEvent) => {
-    ev.preventDefault(); if (!validate()) return
-    setLoading(true); await new Promise(r => setTimeout(r, 700))
-    login({ id:'1', name: email.split('@')[0], email }); nav('/dashboard')
+    ev.preventDefault(); 
+    if (!validate()) return
+    
+    setLoading(true);
+    setApiError(''); // On réinitialise l'ancienne erreur
+
+    try {
+      // 2. Appel à l'API NestJS (assure-toi que l'URL correspond à ton port NestJS, ex: 3000)
+      const response = await axios.post('http://localhost:3000/auth/login', {
+        email,
+        password
+      });
+
+      // 3. Récupération du token JWT et des infos reçues de l'API
+      const { access_token, user } = response.data;
+
+      // 4. On stocke le token dans le localStorage pour rester connecté au rafraîchissement
+      localStorage.setItem('token', access_token);
+
+      // 5. On met à jour le contexte global
+      login(user); 
+
+      // 6. Redirection vers le Dashboard
+      nav('/dashboard');
+    } catch (error: any) {
+      // 7. Gestion propre des erreurs retournées par NestJS
+      if (error.response && error.response.data) {
+        setApiError(error.response.data.message || 'Identifiants incorrects');
+      } else {
+        setApiError('Impossible de contacter le serveur de l\'API.');
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -75,6 +108,13 @@ export default function LoginPage() {
             <p style={{ fontSize:16, color:'var(--t2)', fontWeight:400 }}>Acces a votre espace TaskFlow</p>
           </div>
 
+          {/* Affichage d'un message en cas d'erreur de connexion de l'API */}
+          {apiError && (
+            <div style={{ padding:'12px 16px', borderRadius:12, background:'rgba(248,113,113,.1)', border:'1px solid rgba(248,113,113,.2)', color:'#f87171', fontSize:14, fontWeight:500, marginBottom:20 }}>
+              ⚠️ {apiError}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:20 }}>
             <InputField label="Adresse email" icon="📧" type="email" placeholder="vous@exemple.com"
                         value={email} onChange={setEmail} error={errors.email}/>
@@ -89,10 +129,6 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-
-          <div style={{ marginTop:20, padding:'14px 18px', borderRadius:14, background:'rgba(91,115,245,.06)', border:'1px solid rgba(91,115,245,.14)', textAlign:'center' }}>
-            <p style={{ fontSize:13, color:'var(--t3)' }}>💡 Demo : entrez n'importe quel email + mot de passe</p>
-          </div>
 
           <div style={{ textAlign:'center', marginTop:24 }}>
             <span style={{ fontSize:14.5, color:'var(--t2)' }}>Pas de compte ? </span>

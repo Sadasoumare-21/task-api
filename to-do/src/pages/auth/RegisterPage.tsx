@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTaskContext } from '../../context/TaskContext'
+import axios from 'axios' // 1. On importe Axios
 
 function Logo() {
   return (
@@ -39,6 +40,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(false)
+  const [apiError, setApiError] = useState('') // Pour capturer les erreurs du backend (ex: Email déjà utilisé)
 
   const validate = () => {
     const e: Record<string,string> = {}
@@ -50,9 +52,41 @@ export default function RegisterPage() {
   }
 
   const handleSubmit = async (ev: React.FormEvent) => {
-    ev.preventDefault(); if (!validate()) return
-    setLoading(true); await new Promise(r => setTimeout(r, 800))
-    login({ id: crypto.randomUUID(), name: name.trim(), email }); nav('/dashboard')
+    ev.preventDefault(); 
+    if (!validate()) return
+    
+    setLoading(true);
+    setApiError(''); // Réinitialisation de l'erreur
+
+    try {
+      // 2. Appel vers l'API NestJS pour inscrire l'utilisateur
+      const response = await axios.post('http://localhost:3000/auth/register', {
+        name: name.trim(),
+        email: email.trim(),
+        password: password
+      });
+
+      // 3. Après inscription réussie, NestJS renvoie le token et les données utilisateur
+      const { access_token, user } = response.data;
+
+      // 4. On sauvegarde le token pour les requêtes futures
+      localStorage.setItem('token', access_token);
+
+      // 5. On connecte l'utilisateur globalement dans le contexte
+      login(user);
+
+      // 6. Redirection vers l'espace de gestion des tâches
+      nav('/dashboard');
+    } catch (error: any) {
+      // 7. Capture des erreurs renvoyées par NestJS (ex: Conflit 409 Email existant)
+      if (error.response && error.response.data) {
+        setApiError(error.response.data.message || "Une erreur est survenue lors de l'inscription.");
+      } else {
+        setApiError("Impossible de joindre le serveur d'authentification.");
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -60,7 +94,6 @@ export default function RegisterPage() {
 
       {/* ── LEFT PANEL ──────────────────────────────────────────────── */}
       <div style={{ background:'var(--surface-0)', borderRight:'1px solid var(--line-1)', display:'flex', flexDirection:'column', justifyContent:'space-between', padding:'48px 56px', position:'relative', overflow:'hidden' }}>
-        {/* Glow */}
         <div style={{ position:'absolute', bottom:-100, left:-100, width:400, height:400, background:'radial-gradient(circle,rgba(91,115,245,.08) 0%,transparent 60%)', pointerEvents:'none', borderRadius:'50%' }}/>
         <Logo />
         <div style={{ position:'relative' }}>
@@ -91,6 +124,13 @@ export default function RegisterPage() {
             </h1>
             <p style={{ fontSize:16, color:'var(--t2)', fontWeight:400 }}>Commencez a organiser votre vie des aujourd'hui</p>
           </div>
+
+          {/* Affichage des erreurs d'API (ex: Email déjà pris) */}
+          {apiError && (
+            <div style={{ padding:'12px 16px', borderRadius:12, background:'rgba(248,113,113,.1)', border:'1px solid rgba(248,113,113,.2)', color:'#f87171', fontSize:14, fontWeight:500, marginBottom:20 }}>
+              ⚠️ {apiError}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:20 }}>
             <InputField label="Nom complet"    icon="👤" placeholder="Jean Dupont"       value={name}     onChange={setName}     error={errors.name}/>
