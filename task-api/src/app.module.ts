@@ -6,6 +6,7 @@ import { TaskModule } from './task/task.module';
 import { UserModule } from './user/user.module';
 import { CategoryModule } from './category/category.module';
 import { AuthModule } from './auth/auth.module';
+import { WeatherModule } from './weather/weather.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AuthModule } from './auth/auth.module';
     UserModule,
     CategoryModule,
     AuthModule,
+    WeatherModule,
   ],
   controllers: [AppController],
   providers: [AppService],
