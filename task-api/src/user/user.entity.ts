@@ -11,7 +11,7 @@ export class UserEntity {
     email!: string;
 
   @Column()
-  password?: string;
+  password!: string;
 
   @Column({
         type: 'varchar',
