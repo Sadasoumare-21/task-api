@@ -1,58 +1,52 @@
-import { createContext, useContext, useReducer, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react'
 import type { Task, TaskFilters, User } from '../types'
+import { TaskService } from '../services/task.service'
 
 interface State {
   tasks: Task[]
   filters: TaskFilters
   user: User | null
   isAuthenticated: boolean
+  loading: boolean
 }
 
 type Action =
+  | { type: 'SET_TASKS';    payload: Task[] }
   | { type: 'ADD_TASK';    payload: Task }
   | { type: 'UPDATE_TASK'; payload: Task }
   | { type: 'DELETE_TASK'; payload: string }
-  | { type: 'TOGGLE_TASK'; payload: string }
   | { type: 'SET_FILTERS'; payload: Partial<TaskFilters> }
   | { type: 'LOGIN';       payload: User }
   | { type: 'LOGOUT' }
-
-const today = new Date().toISOString().slice(0, 10)
-
-const SEED: Task[] = [
-  { id:'1', name:'Finaliser le rapport Q1',      description:'Rapport trimestriel complet.', category:'Travail',       status:'pending', priority:'normal', dueDate: today,         dueTime:'09:00', createdAt: new Date(Date.now()-86400000*2).toISOString() },
-  { id:'2', name:'Seance de sport - cardio 30min',description:'30 min cardio + etirements.', category:'Sante',         status:'done',    priority:'normal', dueDate: today,         dueTime:'07:00', createdAt: new Date(Date.now()-86400000*4).toISOString() },
-  { id:'3', name:'Lire chapitre 4 de Clean Code', description:'Fonctions et commentaires.',   category:'Apprentissage', status:'pending', priority:'normal', dueDate:'2026-03-14',   dueTime:'20:00', createdAt: new Date(Date.now()-86400000*3).toISOString() },
-  { id:'4', name:'Virer loyer Mars',              description:'Virement bancaire urgent.',    category:'Finance',       status:'pending', priority:'urgent', dueDate:'2026-03-15',   dueTime:'10:00', createdAt: new Date(Date.now()-86400000).toISOString() },
-  { id:'5', name:'Appeler maman',                 description:'',                            category:'Personnel',     status:'pending', priority:'normal', dueDate: today,         dueTime:'18:00', createdAt: new Date().toISOString() },
-  { id:'6', name:'Reunion equipe produit',         description:'Sprint review + planning.',   category:'Travail',       status:'done',    priority:'urgent', dueDate:'2026-03-12',   dueTime:'14:30', createdAt: new Date(Date.now()-86400000*5).toISOString() },
-]
+  | { type: 'SET_LOADING'; payload: boolean }
 
 function reducer(s: State, a: Action): State {
   switch (a.type) {
+    case 'SET_TASKS':   return { ...s, tasks: a.payload, loading: false }
     case 'ADD_TASK':    return { ...s, tasks: [a.payload, ...s.tasks] }
     case 'UPDATE_TASK': return { ...s, tasks: s.tasks.map(t => t.id === a.payload.id ? a.payload : t) }
     case 'DELETE_TASK': return { ...s, tasks: s.tasks.filter(t => t.id !== a.payload) }
-    case 'TOGGLE_TASK': return { ...s, tasks: s.tasks.map(t => t.id === a.payload ? { ...t, status: t.status === 'done' ? 'pending' : 'done' } : t) }
     case 'SET_FILTERS': return { ...s, filters: { ...s.filters, ...a.payload } }
     case 'LOGIN':       return { ...s, user: a.payload, isAuthenticated: true }
-    case 'LOGOUT':      return { ...s, user: null, isAuthenticated: false }
+    case 'LOGOUT':      return { ...s, user: null, isAuthenticated: false, tasks: [] }
+    case 'SET_LOADING': return { ...s, loading: a.payload }
     default:            return s
   }
 }
 
 const INIT: State = {
-  tasks: SEED,
+  tasks: [],
   filters: { status: 'all', category: 'all', search: '', sort: 'dueDate' },
   user: null,
   isAuthenticated: false,
+  loading: false,
 }
 
 interface Ctx extends State {
-  addTask:    (d: Omit<Task, 'id' | 'createdAt'>) => void
-  updateTask: (t: Task) => void
-  deleteTask: (id: string) => void
-  toggleTask: (id: string) => void
+  addTask:    (d: Omit<Task, 'id' | 'createdAt'>) => Promise<void>
+  updateTask: (t: Task) => Promise<void>
+  deleteTask: (id: string) => Promise<void>
+  toggleTask: (task: Task) => Promise<void>
   setFilters: (f: Partial<TaskFilters>) => void
   login:      (u: User) => void
   logout:     () => void
@@ -62,15 +56,73 @@ const Ctx = createContext<Ctx | null>(null)
 
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INIT)
-  const addTask    = useCallback((d: Omit<Task,'id'|'createdAt'>) =>
-    dispatch({ type:'ADD_TASK', payload: { ...d, id: crypto.randomUUID(), createdAt: new Date().toISOString() } }), [])
-  const updateTask = useCallback((t: Task)    => dispatch({ type:'UPDATE_TASK', payload: t }), [])
-  const deleteTask = useCallback((id: string) => dispatch({ type:'DELETE_TASK', payload: id }), [])
-  const toggleTask = useCallback((id: string) => dispatch({ type:'TOGGLE_TASK', payload: id }), [])
+
+  // Chargement des tâches depuis le backend NestJS à la connexion
+  useEffect(() => {
+    if (state.isAuthenticated) {
+      const fetchTasks = async () => {
+        dispatch({ type: 'SET_LOADING', payload: true })
+        try {
+          const data = await TaskService.getAll()
+          dispatch({ type: 'SET_TASKS', payload: data })
+        } catch (err) {
+          console.error("Erreur lors de la récupération des tâches", err)
+          dispatch({ type: 'SET_LOADING', payload: false })
+        }
+      }
+      fetchTasks()
+    }
+  }, [state.isAuthenticated])
+
+  const addTask = useCallback(async (d: Omit<Task,'id'|'createdAt'>) => {
+    try {
+      const newTask = await TaskService.create(d)
+      dispatch({ type: 'ADD_TASK', payload: newTask })
+    } catch (err) {
+      console.error("Erreur création tâche", err)
+    }
+  }, [])
+
+  const updateTask = useCallback(async (t: Task) => {
+    try {
+      const updatedTask = await TaskService.update(t.id, t)
+      dispatch({ type: 'UPDATE_TASK', payload: updatedTask })
+    } catch (err) {
+      console.error("Erreur mise à jour tâche", err)
+    }
+  }, [])
+
+  const deleteTask = useCallback(async (id: string) => {
+    try {
+      await TaskService.delete(id)
+      dispatch({ type: 'DELETE_TASK', payload: id })
+    } catch (err) {
+      console.error("Erreur suppression tâche", err)
+    }
+  }, [])
+
+  const toggleTask = useCallback(async (task: Task) => {
+    try {
+      const nextStatus = task.status === 'done' ? 'pending' : 'done'
+      const updatedTask = await TaskService.update(task.id, { status: nextStatus })
+      dispatch({ type: 'UPDATE_TASK', payload: updatedTask })
+    } catch (err) {
+      console.error("Erreur basculement statut tâche", err)
+    }
+  }, [])
+
   const setFilters = useCallback((f: Partial<TaskFilters>) => dispatch({ type:'SET_FILTERS', payload: f }), [])
   const login      = useCallback((u: User)    => dispatch({ type:'LOGIN', payload: u }), [])
-  const logout     = useCallback(()           => dispatch({ type:'LOGOUT' }), [])
-  return <Ctx.Provider value={{ ...state, addTask, updateTask, deleteTask, toggleTask, setFilters, login, logout }}>{children}</Ctx.Provider>
+  const logout     = useCallback(()           => {
+    localStorage.removeItem('token')
+    dispatch({ type:'LOGOUT' })
+  }, [])
+
+  return (
+    <Ctx.Provider value={{ ...state, addTask, updateTask, deleteTask, toggleTask, setFilters, login, logout }}>
+      {children}
+    </Ctx.Provider>
+  )
 }
 
 export function useTaskContext(): Ctx {

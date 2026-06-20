@@ -12,10 +12,13 @@ export function useTasks() {
     let r = [...tasks]
     if (filters.status !== 'all')   r = r.filter(t => t.status === filters.status)
     if (filters.category !== 'all') r = r.filter(t => t.category === filters.category)
-    if (filters.search.trim()) {
+    
+    // Utilisation propre de filters.search
+    if (filters.search && filters.search.trim()) {
       const q = filters.search.toLowerCase()
       r = r.filter(t => t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q))
     }
+    
     r.sort((a, b) => {
       if (filters.sort === 'name')    return a.name.localeCompare(b.name)
       if (filters.sort === 'dueDate') return `${a.dueDate}T${a.dueTime}`.localeCompare(`${b.dueDate}T${b.dueTime}`)
