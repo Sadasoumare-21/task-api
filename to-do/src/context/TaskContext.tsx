@@ -1,6 +1,69 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react'
-import type { Task, TaskFilters, User } from '../types'
+import type { Task, TaskFilters, User, TaskCategory } from '../types'
 import { TaskService } from '../services/task.service'
+import { CategoryService } from '../services/category.service'
+
+const categoryMap = {
+  nameToId: {} as Record<string, number>,
+  idToName: {} as Record<number, string>,
+}
+
+interface TaskMetadata {
+  priority: 'normal' | 'urgent'
+  dueDate: string
+  dueTime: string
+}
+
+function getTaskMetadata(id: string): TaskMetadata {
+  try {
+    const metaStr = localStorage.getItem(`task_meta_${id}`)
+    if (metaStr) {
+      return JSON.parse(metaStr)
+    }
+  } catch (e) {
+    console.error("Erreur lecture metadata", e)
+  }
+  const today = new Date().toISOString().slice(0, 10)
+  const nowTime = new Date().toTimeString().slice(0, 5)
+  return {
+    priority: 'normal',
+    dueDate: today,
+    dueTime: nowTime
+  }
+}
+
+function saveTaskMetadata(id: string, meta: Partial<TaskMetadata>) {
+  try {
+    const current = getTaskMetadata(id)
+    const updated = { ...current, ...meta }
+    localStorage.setItem(`task_meta_${id}`, JSON.stringify(updated))
+  } catch (e) {
+    console.error("Erreur sauvegarde metadata", e)
+  }
+}
+
+function removeTaskMetadata(id: string) {
+  localStorage.removeItem(`task_meta_${id}`)
+}
+
+function mapBackendTaskToFrontend(bt: any): Task {
+  const meta = getTaskMetadata(String(bt.id))
+  let category: TaskCategory = 'Travail'
+  if (bt.category && bt.category.name) {
+    category = bt.category.name as TaskCategory
+  }
+  return {
+    id: String(bt.id),
+    name: bt.title,
+    description: bt.description || '',
+    category,
+    status: bt.status === 'COMPLETED' ? 'done' : 'pending',
+    priority: meta.priority,
+    dueDate: meta.dueDate,
+    dueTime: meta.dueTime,
+    createdAt: bt.createdAt || new Date().toISOString()
+  }
+}
 
 interface State {
   tasks: Task[]
@@ -46,7 +109,7 @@ interface Ctx extends State {
   addTask:    (d: Omit<Task, 'id' | 'createdAt'>) => Promise<void>
   updateTask: (t: Task) => Promise<void>
   deleteTask: (id: string) => Promise<void>
-  toggleTask: (task: Task) => Promise<void>
+  toggleTask: (id: string) => Promise<void>
   setFilters: (f: Partial<TaskFilters>) => void
   login:      (u: User) => void
   logout:     () => void
@@ -59,12 +122,38 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   // Chargement des tâches depuis le backend NestJS à la connexion
   useEffect(() => {
-    if (state.isAuthenticated) {
+    if (state.isAuthenticated && state.user) {
       const fetchTasks = async () => {
         dispatch({ type: 'SET_LOADING', payload: true })
         try {
+          // Synchroniser d'abord les catégories
+          try {
+            const existing = await CategoryService.getAll()
+            const required = ['Travail', 'Personnel', 'Sante', 'Apprentissage', 'Finance']
+            
+            for (const catName of required) {
+              const found = existing.find(c => c.name.toLowerCase() === catName.toLowerCase())
+              if (!found) {
+                try {
+                  const newCat = await CategoryService.create(catName)
+                  existing.push(newCat)
+                } catch (e) {
+                  console.error(`Erreur création catégorie ${catName}`, e)
+                }
+              }
+            }
+
+            existing.forEach(c => {
+              categoryMap.nameToId[c.name] = c.id
+              categoryMap.idToName[c.id] = c.name
+            })
+          } catch (e) {
+            console.error("Erreur synchronisation catégories", e)
+          }
+
           const data = await TaskService.getAll()
-          dispatch({ type: 'SET_TASKS', payload: data })
+          const mapped = data.map(t => mapBackendTaskToFrontend(t))
+          dispatch({ type: 'SET_TASKS', payload: mapped })
         } catch (err) {
           console.error("Erreur lors de la récupération des tâches", err)
           dispatch({ type: 'SET_LOADING', payload: false })
@@ -72,21 +161,56 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       }
       fetchTasks()
     }
-  }, [state.isAuthenticated])
+  }, [state.isAuthenticated, state.user])
 
-  const addTask = useCallback(async (d: Omit<Task,'id'|'createdAt'>) => {
+  const addTask = useCallback(async (d: Omit<Task, 'id' | 'createdAt'>) => {
     try {
-      const newTask = await TaskService.create(d)
-      dispatch({ type: 'ADD_TASK', payload: newTask })
+      if (!state.user) return
+      const categoryId = categoryMap.nameToId[d.category] || undefined
+      const newTaskData = {
+        title: d.name,
+        description: d.description,
+        categoryId,
+        userId: Number(state.user.id),
+      }
+      
+      const createdTask = await TaskService.create(newTaskData as any)
+      
+      // Sauvegarder les métadonnées pour cette tâche
+      saveTaskMetadata(String(createdTask.id), {
+        priority: d.priority,
+        dueDate: d.dueDate,
+        dueTime: d.dueTime
+      })
+
+      const mapped = mapBackendTaskToFrontend(createdTask)
+      dispatch({ type: 'ADD_TASK', payload: mapped })
     } catch (err) {
       console.error("Erreur création tâche", err)
     }
-  }, [])
+  }, [state.user])
 
   const updateTask = useCallback(async (t: Task) => {
     try {
-      const updatedTask = await TaskService.update(t.id, t)
-      dispatch({ type: 'UPDATE_TASK', payload: updatedTask })
+      const categoryId = categoryMap.nameToId[t.category] || undefined
+      const updatedTaskData = {
+        title: t.name,
+        description: t.description,
+        categoryId,
+        status: t.status === 'done' ? 'COMPLETED' : 'PENDING'
+      }
+
+      const updated = await TaskService.update(t.id, updatedTaskData)
+      
+      // Sauvegarder les métadonnées
+      saveTaskMetadata(t.id, {
+        priority: t.priority,
+        dueDate: t.dueDate,
+        dueTime: t.dueTime
+      })
+
+      const mapped = mapBackendTaskToFrontend(updated)
+      dispatch({ type: 'UPDATE_TASK', payload: mapped })
     } catch (err) {
       console.error("Erreur mise à jour tâche", err)
     }
@@ -95,21 +219,25 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const deleteTask = useCallback(async (id: string) => {
     try {
       await TaskService.delete(id)
+      removeTaskMetadata(id)
       dispatch({ type: 'DELETE_TASK', payload: id })
     } catch (err) {
       console.error("Erreur suppression tâche", err)
     }
   }, [])
 
-  const toggleTask = useCallback(async (task: Task) => {
+  const toggleTask = useCallback(async (id: string) => {
     try {
-      const nextStatus = task.status === 'done' ? 'pending' : 'done'
-      const updatedTask = await TaskService.update(task.id, { status: nextStatus })
-      dispatch({ type: 'UPDATE_TASK', payload: updatedTask })
+      const task = state.tasks.find(t => t.id === id)
+      if (!task) return
+      const nextStatus = task.status === 'done' ? 'PENDING' : 'COMPLETED'
+      const updated = await TaskService.update(task.id, { status: nextStatus })
+      const mapped = mapBackendTaskToFrontend(updated)
+      dispatch({ type: 'UPDATE_TASK', payload: mapped })
     } catch (err) {
       console.error("Erreur basculement statut tâche", err)
     }
-  }, [])
+  }, [state.tasks])
 
   const setFilters = useCallback((f: Partial<TaskFilters>) => dispatch({ type:'SET_FILTERS', payload: f }), [])
   const login      = useCallback((u: User)    => dispatch({ type:'LOGIN', payload: u }), [])

@@ -30,7 +30,7 @@ export default function DashboardLayout() {
                 display:'flex', alignItems:'center', justifyContent:'center',
                 fontSize:13, fontWeight:700, color:'#fff',
               }}>
-                {user.name.charAt(0).toUpperCase()}
+                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
               </div>
               <div>
                 <div style={{ fontSize:13.5, fontWeight:600, color:'var(--t1)', letterSpacing:'-.01em', lineHeight:1.1 }}>{user.name}</div>

@@ -13,7 +13,7 @@ const CAT_COLORS: Record<string,string> = {
 
 /** TaskCard — props : task, onToggle, onEdit, onDelete, onClick */
 export default function TaskCard({ task, onToggle, onEdit, onDelete, onClick }: TaskCardProps) {
-  const s = STATUS[task.status]
+  const s = STATUS[task.status as keyof typeof STATUS] || STATUS.pending
   const c = CAT_COLORS[task.category] ?? '#9191b5'
   const overdue = task.status !== 'done' && new Date(`${task.dueDate}T${task.dueTime}`) < new Date()
 

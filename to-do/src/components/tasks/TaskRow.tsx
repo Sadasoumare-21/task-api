@@ -1,10 +1,10 @@
 import type { TaskRowProps, TaskCategory } from '../../types'
 
 const CAT_ICON: Record<TaskCategory, string> = {
-  Travail:'🗂️', Personnel:'🌿', Sante:'❤️', Apprentissage:'📊', Finance:'💰',
+  Travail:'🗂️', Personnel:'🌿', Sante:'❤️', Apprentissage:'📊', Finance:'💰', Projets:'📁', Autre:'📌',
 }
 const CAT_COLOR: Record<TaskCategory, string> = {
-  Travail:'#7b8fff', Personnel:'#3ecf8e', Sante:'#f87171', Apprentissage:'#a78bfa', Finance:'#fbbf24',
+  Travail:'#7b8fff', Personnel:'#3ecf8e', Sante:'#f87171', Apprentissage:'#a78bfa', Finance:'#fbbf24', Projets:'#6366f1', Autre:'#94a3b8',
 }
 
 /** TaskRow — Props: task, onToggle, onEdit, onDelete, onClick */

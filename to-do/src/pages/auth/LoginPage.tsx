@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTaskContext } from '../../context/TaskContext'
-import axios from 'axios' // 1. On importe Axios
+import { AuthService } from '../../services/auth.service'; // 🟢 Import de notre service centralisé
 
 function InputField({ label, type='text', icon, placeholder, value, onChange, error, extra }:
   { label:string; type?:string; icon:string; placeholder:string; value:string; onChange:(v:string)=>void; error?:string; extra?:React.ReactNode }) {
@@ -30,7 +30,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(false)
-  const [apiError, setApiError] = useState('') // Pour afficher les erreurs du serveur (ex: Identifiants incorrects)
+  const [apiError, setApiError] = useState('') 
 
   const validate = () => {
     const e: Record<string,string> = {}
@@ -44,28 +44,22 @@ export default function LoginPage() {
     if (!validate()) return
     
     setLoading(true);
-    setApiError(''); // On réinitialise l'ancienne erreur
+    setApiError(''); 
 
     try {
-      // 2. Appel à l'API NestJS (assure-toi que l'URL correspond à ton port NestJS, ex: 3000)
-      const response = await axios.post('http://localhost:3000/auth/login', {
-        email,
-        password
-      });
+      // 🟢 Remplacement de l'appel direct Axios par AuthService
+      const data = await AuthService.login({ email, password });
 
-      // 3. Récupération du token JWT et des infos reçues de l'API
-      const { access_token, user } = response.data;
+      // 💾 Stockage du token dans le localStorage pour l'intercepteur api.ts
+      localStorage.setItem('token', data.access_token);
 
-      // 4. On stocke le token dans le localStorage pour rester connecté au rafraîchissement
-      localStorage.setItem('token', access_token);
+      // 🎯 Mise à jour du contexte global avec les données utilisateur renvoyées
+      login(data.user); 
 
-      // 5. On met à jour le contexte global
-      login(user); 
-
-      // 6. Redirection vers le Dashboard
+      // 🚀 Redirection vers le Dashboard
       nav('/dashboard');
     } catch (error: any) {
-      // 7. Gestion propre des erreurs retournées par NestJS
+      // 🟢 Extraction propre du message d'erreur intercepté par Axios/AuthService
       if (error.response && error.response.data) {
         setApiError(error.response.data.message || 'Identifiants incorrects');
       } else {
@@ -108,7 +102,6 @@ export default function LoginPage() {
             <p style={{ fontSize:16, color:'var(--t2)', fontWeight:400 }}>Acces a votre espace TaskFlow</p>
           </div>
 
-          {/* Affichage d'un message en cas d'erreur de connexion de l'API */}
           {apiError && (
             <div style={{ padding:'12px 16px', borderRadius:12, background:'rgba(248,113,113,.1)', border:'1px solid rgba(248,113,113,.2)', color:'#f87171', fontSize:14, fontWeight:500, marginBottom:20 }}>
               ⚠️ {apiError}

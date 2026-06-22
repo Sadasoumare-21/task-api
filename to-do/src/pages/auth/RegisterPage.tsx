@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTaskContext } from '../../context/TaskContext'
-import axios from 'axios' // 1. On importe Axios
+import { AuthService } from '../../services/auth.service'; // 🟢 Instance centrale propre
 
 function Logo() {
   return (
@@ -40,7 +40,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(false)
-  const [apiError, setApiError] = useState('') // Pour capturer les erreurs du backend (ex: Email déjà utilisé)
+  const [apiError, setApiError] = useState('') 
 
   const validate = () => {
     const e: Record<string,string> = {}
@@ -56,29 +56,24 @@ export default function RegisterPage() {
     if (!validate()) return
     
     setLoading(true);
-    setApiError(''); // Réinitialisation de l'erreur
+    setApiError(''); 
 
     try {
-      // 2. Appel vers l'API NestJS pour inscrire l'utilisateur
-      const response = await axios.post('http://localhost:3000/auth/register', {
-        name: name.trim(),
+      // 🟢 Modifié : On passe uniquement email et password, l'ID et le nom fictif sont construits par notre service
+      const data = await AuthService.register({
         email: email.trim(),
         password: password
       });
 
-      // 3. Après inscription réussie, NestJS renvoie le token et les données utilisateur
-      const { access_token, user } = response.data;
+      // 💾 Sauvegarde du token JWT
+      localStorage.setItem('token', data.access_token);
 
-      // 4. On sauvegarde le token pour les requêtes futures
-      localStorage.setItem('token', access_token);
+      // 🎯 Mise à jour globale de la session utilisateur
+      login(data.user);
 
-      // 5. On connecte l'utilisateur globalement dans le contexte
-      login(user);
-
-      // 6. Redirection vers l'espace de gestion des tâches
+      // 🚀 Redirection instantanée au Dashboard
       nav('/dashboard');
     } catch (error: any) {
-      // 7. Capture des erreurs renvoyées par NestJS (ex: Conflit 409 Email existant)
       if (error.response && error.response.data) {
         setApiError(error.response.data.message || "Une erreur est survenue lors de l'inscription.");
       } else {
@@ -125,7 +120,6 @@ export default function RegisterPage() {
             <p style={{ fontSize:16, color:'var(--t2)', fontWeight:400 }}>Commencez a organiser votre vie des aujourd'hui</p>
           </div>
 
-          {/* Affichage des erreurs d'API (ex: Email déjà pris) */}
           {apiError && (
             <div style={{ padding:'12px 16px', borderRadius:12, background:'rgba(248,113,113,.1)', border:'1px solid rgba(248,113,113,.2)', color:'#f87171', fontSize:14, fontWeight:500, marginBottom:20 }}>
               ⚠️ {apiError}
@@ -138,8 +132,7 @@ export default function RegisterPage() {
             <InputField label="Mot de passe"   icon="🔒" type="password" placeholder="Minimum 8 caracteres" value={password} onChange={setPassword} error={errors.password}/>
 
             <div style={{ marginTop:8 }}>
-              <button type="submit" disabled={loading} className="btn btn-hero"
-                style={{ width:'100%', justifyContent:'center' }}>
+              <button type="submit" disabled={loading} className="btn btn-hero" style={{ width:'100%', justifyContent:'center' }}>
                 {loading
                   ? <><span style={{ width:18, height:18, border:'2.5px solid rgba(255,255,255,.3)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block', animation:'spin-slow .7s linear infinite' }}/> Creation en cours...</>
                   : 'Creer mon compte →'}

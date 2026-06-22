@@ -24,7 +24,12 @@ export default function Modal({ isOpen, onClose, title, children }: Props) {
       {/* Panel */}
       <div className="fx-up" style={{ position:'relative', width:'100%', maxWidth:560 }}
         onClick={e => e.stopPropagation()}>
-        <div className="panel" style={{ padding:'32px 36px', boxShadow:'0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06)' }}>
+        <div className="panel" style={{
+          padding:'32px 36px',
+          boxShadow:'0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06)',
+          maxHeight: 'calc(100vh - 48px)',
+          overflowY: 'auto'
+        }}>
           {/* Header */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:28 }}>
             <h2 style={{ fontSize:20, fontWeight:700, color:'var(--t1)', letterSpacing:'-.03em' }}>{title}</h2>

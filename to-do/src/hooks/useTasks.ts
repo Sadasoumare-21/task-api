@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useTaskContext } from '../context/TaskContext'
 import type { Task, TaskStats, TaskCategory } from '../types'
 
-const CATS: TaskCategory[] = ['Travail','Personnel','Sante','Apprentissage','Finance']
+const CATS: TaskCategory[] = ['Travail','Personnel','Sante','Apprentissage','Finance','Projets','Autre']
 
 export function useTasks() {
   const ctx = useTaskContext()
