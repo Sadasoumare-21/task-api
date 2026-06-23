@@ -1,14 +1,10 @@
 // src/services/weather.service.ts
 //
 // ┌─────────────────────────────────────────────────────────────────────────┐
-// │  WeatherService — prêt pour NestJS                                      │
+// │  WeatherService — Open-Meteo (aucune clé API requise, gratuit)          │
 // │                                                                         │
-// │  MODE ACTUEL  : appel direct OpenWeatherMap (clé publique démo)         │
-// │  MODE NESTJS  : décommentez USE_BACKEND et configurez NESTJS_BASE_URL   │
-// │                 Votre backend doit exposer :                             │
-// │                   GET /weather?city=Paris                               │
-// │                   GET /weather/forecast?city=Paris                      │
-// │                 et retourner le même format WeatherData                 │
+// │  Géocodage : https://geocoding-api.open-meteo.com (city → lat/lon)     │
+// │  Météo     : https://api.open-meteo.com           (lat/lon → données)  │
 // └─────────────────────────────────────────────────────────────────────────┘
 
 export interface WeatherData {
@@ -19,12 +15,12 @@ export interface WeatherData {
   humidity:    number        // %
   windSpeed:   number        // km/h
   description: string
-  icon:        string        // code OpenWeatherMap, ex: "01d"
-  condition:   string        // ex: "Clear", "Clouds", "Rain"
-  sunrise:     number        // timestamp unix
-  sunset:      number        // timestamp unix
+  icon:        string        // "01d" | "01n" (day/night détecté via sunrise/sunset)
+  condition:   string        // "Clear" | "Clouds" | "Rain" …
+  sunrise:     number        // timestamp unix (secondes)
+  sunset:      number        // timestamp unix (secondes)
   updatedAt:   Date
-  timezone?:   number        // Décalage en secondes par rapport à UTC
+  timezone?:   number        // décalage UTC en secondes
 }
 
 export interface ForecastDay {
@@ -36,137 +32,122 @@ export interface ForecastDay {
   condition:   string
 }
 
-// ─── Configuration ────────────────────────────────────────────────────────────
+// ─── WMO code → condition / description ───────────────────────────────────────
 
-// ⚠️  Remplacez par votre vraie clé OpenWeatherMap si besoin (gratuite sur openweathermap.org)
-//     Ou passez en mode backend NestJS en activant USE_BACKEND ci-dessous.
-const OWM_API_KEY    = 'bd5e378503939ddaee76f12ad7a97608' // clé démo publique
-const OWM_BASE_URL   = 'https://api.openweathermap.org/data/2.5'
+interface WmoInfo { condition: string; description: string }
 
-// ─── Backend NestJS ───────────────────────────────────────────────────────────
-// Pour activer le backend, passez USE_BACKEND à true et configurez l'URL
-const USE_BACKEND    = false
-const NESTJS_BASE_URL = 'http://localhost:3000' // même base que votre API
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function kelvinToCelsius(k: number): number {
-  return Math.round(k - 273.15)
+function wmoToInfo(code: number): WmoInfo {
+  if (code === 0)              return { condition:'Clear',       description:'ciel dégagé' }
+  if (code === 1)              return { condition:'Clear',       description:'principalement dégagé' }
+  if (code === 2)              return { condition:'Clouds',      description:'partiellement nuageux' }
+  if (code === 3)              return { condition:'Clouds',      description:'couvert' }
+  if (code === 45 || code === 48) return { condition:'Mist',    description:'brouillard' }
+  if (code >= 51 && code <= 55)  return { condition:'Drizzle',  description:'bruine' }
+  if (code >= 61 && code <= 67)  return { condition:'Rain',     description:'pluie' }
+  if (code >= 71 && code <= 77)  return { condition:'Snow',     description:'neige' }
+  if (code >= 80 && code <= 82)  return { condition:'Rain',     description:'averses' }
+  if (code >= 85 && code <= 86)  return { condition:'Snow',     description:'averses de neige' }
+  if (code >= 95 && code <= 99)  return { condition:'Thunderstorm', description:'orage' }
+  return { condition:'Clouds', description:'nuageux' }
 }
 
-function mpsToKmh(mps: number): number {
-  return Math.round(mps * 3.6)
+// ─── Géocodage Open-Meteo ─────────────────────────────────────────────────────
+
+interface GeoResult {
+  name: string
+  country_code: string
+  latitude: number
+  longitude: number
+  timezone: string
 }
 
-// ─── Parser de la réponse OpenWeatherMap ─────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseOWMCurrent(data: any): WeatherData {
-  return {
-    city:        data.name,
-    country:     data.sys?.country ?? '',
-    temperature: kelvinToCelsius(data.main.temp),
-    feelsLike:   kelvinToCelsius(data.main.feels_like),
-    humidity:    data.main.humidity,
-    windSpeed:   mpsToKmh(data.wind.speed),
-    description: data.weather[0].description,
-    icon:        data.weather[0].icon,
-    condition:   data.weather[0].main,
-    sunrise:     data.sys.sunrise,
-    sunset:      data.sys.sunset,
-    updatedAt:   new Date(),
-    timezone:    data.timezone,
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseOWMForecast(data: any): ForecastDay[] {
-  // OWM renvoie des points toutes les 3h — on garde un par jour (12:00)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const days: Record<string, any[]> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data.list.forEach((item: any) => {
-    const date = item.dt_txt.split(' ')[0]
-    if (!days[date]) days[date] = []
-    days[date].push(item)
-  })
-
-  return Object.entries(days)
-    .slice(0, 5)
-    .map(([dateStr, items]) => {
-      const temps     = items.map((i) => kelvinToCelsius(i.main.temp))
-      const noonItem  = items.find((i) => i.dt_txt.includes('12:00')) ?? items[0]
-      return {
-        date:        new Date(dateStr),
-        tempMax:     Math.max(...temps),
-        tempMin:     Math.min(...temps),
-        description: noonItem.weather[0].description,
-        icon:        noonItem.weather[0].icon,
-        condition:   noonItem.weather[0].main,
-      }
-    })
+async function geocode(city: string): Promise<GeoResult> {
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fr&format=json`
+  )
+  if (!res.ok) throw new Error(`Géocodage échoué : ${res.status}`)
+  const data = await res.json()
+  if (!data.results?.length) throw new Error(`Ville introuvable : "${city}"`)
+  return data.results[0] as GeoResult
 }
 
 // ─── Service public ───────────────────────────────────────────────────────────
 
 /**
  * Récupère la météo actuelle pour une ville donnée.
- *
- * 🔌 Migration NestJS :
- *   Passez USE_BACKEND à true — votre endpoint /weather?city=... sera appelé
- *   et doit retourner un objet compatible avec WeatherData.
  */
 export async function fetchCurrentWeather(city: string): Promise<WeatherData> {
-  if (USE_BACKEND) {
-    // ── NestJS backend ────────────────────────────────────────────────────────
-    const res = await fetch(`${NESTJS_BASE_URL}/weather?city=${encodeURIComponent(city)}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token') ?? ''}`,
-      },
-    })
-    if (!res.ok) throw new Error(`Weather API error: ${res.status}`)
-    return res.json() as Promise<WeatherData>
-  }
+  const geo = await geocode(city)
 
-  // ── OpenWeatherMap direct ─────────────────────────────────────────────────
-  const res = await fetch(
-    `${OWM_BASE_URL}/weather?q=${encodeURIComponent(city)}&appid=${OWM_API_KEY}&lang=fr`
-  )
-  if (!res.ok) {
-    if (res.status === 404) throw new Error(`Ville introuvable : "${city}"`)
-    throw new Error(`Erreur météo : ${res.status}`)
-  }
+  const url = [
+    `https://api.open-meteo.com/v1/forecast`,
+    `?latitude=${geo.latitude}&longitude=${geo.longitude}`,
+    `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code`,
+    `&daily=sunrise,sunset`,
+    `&timezone=${encodeURIComponent(geo.timezone)}`,
+    `&forecast_days=1`,
+  ].join('')
+
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`API météo : ${res.status}`)
   const data = await res.json()
-  return parseOWMCurrent(data)
+
+  const cur = data.current
+  const info = wmoToInfo(cur.weather_code)
+
+  // Sunrise / sunset du jour (format ISO)
+  const sunriseTs = Math.floor(new Date(data.daily.sunrise[0]).getTime() / 1000)
+  const sunsetTs  = Math.floor(new Date(data.daily.sunset[0]).getTime() / 1000)
+  const nowTs     = Math.floor(Date.now() / 1000)
+  const isDay     = nowTs >= sunriseTs && nowTs < sunsetTs
+
+  // Décalage UTC fourni directement par Open-Meteo (en secondes)
+  const tzOffsetSeconds: number = data.utc_offset_seconds ?? 0
+
+  return {
+    city:        geo.name,
+    country:     geo.country_code,
+    temperature: Math.round(cur.temperature_2m),
+    feelsLike:   Math.round(cur.apparent_temperature),
+    humidity:    cur.relative_humidity_2m,
+    windSpeed:   Math.round(cur.wind_speed_10m),
+    description: info.description,
+    icon:        isDay ? '01d' : '01n',   // suffixe 'n' = nuit → 🌙 dans le widget
+    condition:   info.condition,
+    sunrise:     sunriseTs,
+    sunset:      sunsetTs,
+    updatedAt:   new Date(),
+    timezone:    tzOffsetSeconds,
+  }
 }
 
 /**
  * Récupère les prévisions sur 5 jours pour une ville donnée.
- *
- * 🔌 Migration NestJS :
- *   Endpoint : GET /weather/forecast?city=...
- *   Retourne : ForecastDay[]
  */
 export async function fetchForecast(city: string): Promise<ForecastDay[]> {
-  if (USE_BACKEND) {
-    // ── NestJS backend ────────────────────────────────────────────────────────
-    const res = await fetch(`${NESTJS_BASE_URL}/weather/forecast?city=${encodeURIComponent(city)}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token') ?? ''}`,
-      },
-    })
-    if (!res.ok) throw new Error(`Forecast API error: ${res.status}`)
-    return res.json() as Promise<ForecastDay[]>
-  }
+  const geo = await geocode(city)
 
-  // ── OpenWeatherMap direct ─────────────────────────────────────────────────
-  const res = await fetch(
-    `${OWM_BASE_URL}/forecast?q=${encodeURIComponent(city)}&appid=${OWM_API_KEY}&lang=fr`
-  )
-  if (!res.ok) {
-    if (res.status === 404) throw new Error(`Ville introuvable : "${city}"`)
-    throw new Error(`Erreur prévisions : ${res.status}`)
-  }
+  const url = [
+    `https://api.open-meteo.com/v1/forecast`,
+    `?latitude=${geo.latitude}&longitude=${geo.longitude}`,
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset`,
+    `&timezone=${encodeURIComponent(geo.timezone)}`,
+    `&forecast_days=5`,
+  ].join('')
+
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`API prévision : ${res.status}`)
   const data = await res.json()
-  return parseOWMForecast(data)
+
+  return (data.daily.time as string[]).map((dateStr: string, i: number) => {
+    const info = wmoToInfo(data.daily.weather_code[i])
+    return {
+      date:        new Date(dateStr),
+      tempMax:     Math.round(data.daily.temperature_2m_max[i]),
+      tempMin:     Math.round(data.daily.temperature_2m_min[i]),
+      description: info.description,
+      icon:        '01d',
+      condition:   info.condition,
+    }
+  })
 }
