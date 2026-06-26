@@ -10,6 +10,7 @@ import type { Task, TaskFilters, User, TaskCategory } from '../types'
 import { TaskService } from '../services/task.service'
 import { CategoryService } from '../services/category.service'
 import api from '../services/api'
+import { useTaskReminders } from '../hooks/useTaskReminders'
 
 // ─── Métadonnées locales (priority, dueDate, dueTime) ────────────────────────
 const categoryMap = {
@@ -132,6 +133,9 @@ const Ctx = createContext<Ctx | null>(null)
 
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INIT)
+
+  // ── Rappels automatiques avant échéance ───────────────────────────────────
+  useTaskReminders(state.tasks)
 
   useEffect(() => {
     const token = localStorage.getItem('token')

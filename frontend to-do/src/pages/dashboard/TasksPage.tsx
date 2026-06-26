@@ -14,8 +14,22 @@ export default function TasksPage() {
   const [selected, setSelected] = useState<Task|null>(null)
   const [editing,  setEditing]  = useState<Task|null>(null)
   const [showAdd,  setShowAdd]  = useState(false)
+  const [addError, setAddError] = useState('')
 
-  const handleAdd    = (d: Omit<Task,'id'|'createdAt'>) => { addTask(d); setShowAdd(false) }
+  const handleAdd = async (d: Omit<Task,'id'|'createdAt'>) => {
+    try {
+      setAddError('')
+      await addTask(d)
+      setShowAdd(false)
+    } catch (err: any) {
+      const status = err?.response?.status
+      if (status === 409) {
+        setAddError('Cette tâche existe déjà pour votre compte.')
+      } else {
+        setAddError('Une erreur est survenue. Veuillez réessayer.')
+      }
+    }
+  }
   const handleUpdate = (d: Omit<Task,'id'|'createdAt'>) => { if(!editing) return; updateTask({...editing,...d}); setEditing(null) }
   const handleDelete = (id: string) => { deleteTask(id); if(selected?.id===id) setSelected(null) }
 
@@ -72,8 +86,13 @@ export default function TasksPage() {
         </div>
       )}
 
-      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Nouvelle tache">
-        <TaskForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)}/>
+      <Modal isOpen={showAdd} onClose={() => { setShowAdd(false); setAddError('') }} title="Nouvelle tache">
+        {addError && (
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(248,113,113,.1)', border: '1px solid rgba(248,113,113,.25)', borderRadius: 10, fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>
+            ⚠️ {addError}
+          </div>
+        )}
+        <TaskForm onSubmit={handleAdd} onCancel={() => { setShowAdd(false); setAddError('') }}/>
       </Modal>
       <Modal isOpen={!!editing} onClose={() => setEditing(null)} title="Modifier la tache">
         {editing && <TaskForm initial={editing} onSubmit={handleUpdate} onCancel={() => setEditing(null)}/>}

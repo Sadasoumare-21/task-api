@@ -7,6 +7,7 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 import DashboardLayout   from './pages/dashboard/DashboardLayout'
 import DashboardPage     from './pages/dashboard/DashboardPage'
 import StatsPage         from './pages/dashboard/StatsPage'
+import ReminderToast     from './components/ui/ReminderToast'
 
 /**
  * App.tsx — Composant racine nettoyé.
@@ -15,6 +16,8 @@ import StatsPage         from './pages/dashboard/StatsPage'
 export default function App() {
   return (
     <TaskProvider>
+      {/* Notification in-app pour les rappels de tâches */}
+      <ReminderToast />
       <Routes>
         {/* ── Public ──────────────────────────────────────────────── */}
         <Route path="/"              element={<LandingPage />} />

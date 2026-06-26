@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskEntity } from './task.entity';
@@ -12,10 +12,23 @@ export class TaskService {
 
   async create(createTaskDto: any, userId: number): Promise<TaskEntity> {
     const { categoryId, title, description, ...rest } = createTaskDto;
+    const normalizedTitle = (title || '').trim();
+
+    // ── Détection de doublon : même titre (insensible à la casse) pour le même utilisateur
+    const existing = await this.taskRepository
+      .createQueryBuilder('task')
+      .innerJoin('task.user', 'user')
+      .where('user.id = :userId', { userId })
+      .andWhere('LOWER(task.title) = LOWER(:title)', { title: normalizedTitle })
+      .getOne();
+
+    if (existing) {
+      throw new ConflictException('Cette tâche existe déjà.');
+    }
 
     return this.taskRepository.save({
       ...rest,
-      title: title || '',
+      title: normalizedTitle,
       description: description || '',
       user: { id: userId }, // Lie la tâche à l'utilisateur connecté
       category: categoryId ? { id: categoryId } : undefined,
