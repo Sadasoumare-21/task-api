@@ -27,7 +27,7 @@ npm install
 npm run start:dev
 ```
 L'API sera disponible sur : **`http://localhost:3000`**  
-La documentation interactive Swagger est accessible sur : **`http://localhost:3000/api`** (si Swagger est activé).
+La documentation interactive Swagger est accessible sur : **`http://localhost:3000/api/docs`** (si Swagger est activé).
 
 ---
 
