@@ -19,7 +19,7 @@ import { WeatherModule } from './weather/weather.module';
       database: 'task-db',
       autoLoadEntities: true,
       synchronize: true,
-      //dropSchema: true,
+      // dropSchema: true,
     }),
     TaskModule,
     UserModule,

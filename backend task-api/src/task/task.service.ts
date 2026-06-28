@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskEntity } from './task.entity';
+import { Role } from '../user/role.enum'; 
 
 @Injectable()
 export class TaskService {
@@ -10,11 +11,12 @@ export class TaskService {
     private readonly taskRepository: Repository<TaskEntity>,
   ) { }
 
+  // 1. Créer une tâche liée à l'utilisateur connecté
   async create(createTaskDto: any, userId: number): Promise<TaskEntity> {
     const { categoryId, title, description, ...rest } = createTaskDto;
     const normalizedTitle = (title || '').trim();
 
-    // ── Détection de doublon : même titre (insensible à la casse) pour le même utilisateur
+    // Détection de doublon uniquement parmi les tâches du même utilisateur
     const existing = await this.taskRepository
       .createQueryBuilder('task')
       .innerJoin('task.user', 'user')
@@ -30,55 +32,41 @@ export class TaskService {
       ...rest,
       title: normalizedTitle,
       description: description || '',
-      user: { id: userId }, // Lie la tâche à l'utilisateur connecté
+      user: { id: userId }, 
       category: categoryId ? { id: categoryId } : undefined,
     });
   }
 
-  // 🟢 Remplace la méthode par celle-ci dans ton service
-  async findAllByUserId(userId: number): Promise<any> {
+  // 2. Lecture globale : Les ADMINS voient tout, les USERS voient uniquement leurs propres tâches
+  async findAll(currentUser: { id: number; role: Role }): Promise<TaskEntity[]> {
+    const filter = currentUser.role === Role.ADMIN ? {} : { user: { id: currentUser.id } };
+
     return this.taskRepository.find({
-      where: {
-        user: { id: userId }
-      },
-      relations: {
-        category: true,
-      },
-      order: {
-        createdAt: 'DESC',
-      }
+      where: filter,
+      relations: { category: true },
+      order: { createdAt: 'DESC' }
     });
   }
 
-  // 🟢 Correction du findAll par défaut pour qu'il renvoie aussi un tableau TaskEntity[]
-  async findAll(): Promise<TaskEntity[]> {
-    return this.taskRepository.find({
-      relations: { category: true }
-    });
-  }
-
-  // Récupérer une seule tâche par son ID de façon sécurisée (avec validation de propriété)
-  async findOne(id: number, userId: number): Promise<TaskEntity> {
+  // 3. Récupérer une seule tâche (404 si elle n'appartient pas à l'USER et qu'il n'est pas ADMIN)
+  async findOne(id: number, currentUser: { id: number; role: Role }): Promise<TaskEntity> {
     const task = await this.taskRepository.findOne({
       where: { id },
       relations: { user: true, category: true }
     });
-    if (!task) {
-      throw new NotFoundException(`Tâche # ${id} introuvable`);
-    }
     
-    // Contrôle d'accès : Seul le propriétaire de la tâche peut y accéder
-    if (task.user.id !== userId) {
-      throw new ForbiddenException(`Vous n'avez pas l'autorisation d'accéder à cette tâche.`);
+    // Si la tâche n'existe pas, ou si elle appartient à quelqu'un d'autre alors que l'appelant n'est pas ADMIN
+    if (!task || (currentUser.role !== Role.ADMIN && task.user.id !== currentUser.id)) {
+      throw new NotFoundException(`La tâche spécifiée est introuvable`); // Masquage par une 404
     }
 
     return task;
   }
 
-  // Mettre à jour une tâche de façon sécurisée
-  async update(id: number, updateTaskDto: any, userId: number): Promise<TaskEntity> {
-    // Vérifie d'abord que la tâche existe et appartient à l'utilisateur
-    await this.findOne(id, userId);
+  // 4. Mettre à jour une tâche de façon sécurisée (ADMIN ou Propriétaire)
+  async update(id: number, updateTaskDto: any, currentUser: { id: number; role: Role }): Promise<TaskEntity> {
+    // La méthode findOne lève une 404 automatique si l'accès n'est pas autorisé
+    await this.findOne(id, currentUser);
 
     const { categoryId, ...rest } = updateTaskDto;
     const updateData: any = { ...rest };
@@ -87,12 +75,15 @@ export class TaskService {
     }
 
     await this.taskRepository.update(id, updateData);
-    return this.findOne(id, userId);
+    return this.findOne(id, currentUser);
   }
 
-  // Supprimer une tâche de façon sécurisée
-  async remove(id: number, userId: number): Promise<void> {
-    const task = await this.findOne(id, userId);
+  // 5. Supprimer une tâche de façon sécurisée (ADMIN ou Propriétaire)
+  async remove(id: number, currentUser: { id: number; role: Role }): Promise<{ message: string }> {
+    // La méthode findOne lève une 404 automatique si l'accès n'est pas autorisé
+    const task = await this.findOne(id, currentUser);
+    
     await this.taskRepository.remove(task);
+    return { message: `La tâche avec l'ID ${id} a été supprimée avec succès` };
   }
 }

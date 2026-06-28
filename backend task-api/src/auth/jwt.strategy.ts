@@ -44,8 +44,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * La valeur retournée sera disponible sous req.user dans les contrôleurs.
    */
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
-    // Vérification que l'utilisateur n'a pas été supprimé entre-temps
-    const user = await this.userService.findOne(payload.sub);
+    // 🟢 CORRIGÉ : On passe le payload extrait du token en 2ème argument pour satisfaire la signature de findOne
+    const user = await this.userService.findOne(payload.sub, {
+      id: payload.sub,
+      role: payload.role,
+    });
 
     if (!user) {
       throw new UnauthorizedException('Token invalide : utilisateur introuvable.');

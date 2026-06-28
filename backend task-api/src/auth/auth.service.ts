@@ -2,6 +2,8 @@ import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/co
 import { UserService } from '../user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { Role } from 'src/user/role.enum';
+import { CreateUserDto } from 'src/user/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -11,21 +13,20 @@ export class AuthService {
   ) {}
 
   // 🚀 LOGIQUE D'INSCRIPTION (REGISTER)
-  async register(registerDto: { email: string; password: string }) {
-    // 1. Vérification propre de l'existence de l'utilisateur
-    const existingUser = await this.userService.findByEmail(registerDto.email);
-    if (existingUser) {
-      throw new ConflictException('Un utilisateur avec cet email existe déjà');
-    }
+  async register(registerDto: CreateUserDto) { 
+  const existingUser = await this.userService.findByEmail(registerDto.email);
+  if (existingUser) {
+    throw new ConflictException('Un utilisateur avec cet email existe déjà');
+  }
 
-    // 2. L'unique hachage robuste du mot de passe
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+  const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    // 3. Création via le UserService
-    const newUser = await this.userService.create({
-      email: registerDto.email,
-      password: hashedPassword,
-    });
+  // Lors de la création, si registerDto.role n'est pas défini, passe-lui la valeur par défaut de l'enum
+  const newUser = await this.userService.create({
+    email: registerDto.email,
+    password: hashedPassword,
+    role: registerDto.role || Role.USER, // <-- Plus d'erreur ici car les deux côtés utilisent l'enum "Role"
+  });
 
     // 4. Token JWT
     const payload = { sub: newUser.id, email: newUser.email, role: newUser.role };

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { UserEntity } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Role } from './role.enum'; 
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -13,7 +14,7 @@ export class UserService {
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  // 🟢 CORRIGÉ : Implémentation réelle pour l'AuthService
+  // Utilisation interne par l'AuthService (Vérification d'existence à l'inscription)
   async findByEmail(email: string): Promise<Omit<UserEntity, 'password'> | null> {
     const user = await this.userRepository.findOneBy({ email });
     if (!user) return null;
@@ -30,7 +31,6 @@ export class UserService {
       throw new ConflictException(`L'adresse email ${email} est déjà utilisée`);
     }
 
-    // 🟢 CORRIGÉ : On retire le bcrypt.hash d'ici ! Le mot de passe arrive DEJA haché par l'AuthService
     const newUser = this.userRepository.create(createUserDto);
     const savedUser = await this.userRepository.save(newUser);
     
@@ -38,8 +38,13 @@ export class UserService {
     return userWithoutPassword;
   }
 
-  // 2. Récupérer tous les utilisateurs
-  async findAll(): Promise<Omit<UserEntity, 'password'>[]> {
+  // 2. Récupérer tous les utilisateurs (Réservé aux ADMINS)
+  async findAll(currentUser: { id: number; role: Role }): Promise<Omit<UserEntity, 'password'>[]> {
+    // Si l'utilisateur n'est pas ADMIN, on bloque directement l'accès
+    if (currentUser.role !== Role.ADMIN) {
+      throw new NotFoundException(); // On lève une 404 pour faire croire que la ressource globale n'existe pas pour lui
+    }
+
     const users = await this.userRepository.find({
       order: { createdAt: 'DESC' },
     });
@@ -50,8 +55,13 @@ export class UserService {
     });
   }
 
-  // 3. Récupérer un utilisateur par son ID
-  async findOne(id: number): Promise<Omit<UserEntity, 'password'>> {
+  // 3. Récupérer un utilisateur par son ID (ADMIN voit tout, USER voit uniquement son propre ID)
+  async findOne(id: number, currentUser: { id: number; role: Role }): Promise<Omit<UserEntity, 'password'>> {
+    // Si l'utilisateur n'est pas ADMIN et qu'il essaie de voir un autre ID que le sien
+    if (currentUser.role !== Role.ADMIN && currentUser.id !== id) {
+      throw new NotFoundException(`L'utilisateur avec l'ID ${id} n'existe pas`);
+    }
+
     const user = await this.userRepository.findOneBy({ id });
     if (!user) {
       throw new NotFoundException(`L'utilisateur avec l'ID ${id} n'existe pas`);
@@ -61,15 +71,18 @@ export class UserService {
     return userWithoutPassword;
   }
 
-  // 4. Méthode spéciale pour l'authentification (récupère le mot de passe complet)
+  // 4. Méthode spéciale pour l'authentification (Interne)
   async findByEmailWithPassword(email: string): Promise<UserEntity | null> {
     return await this.userRepository.findOne({
       where: { email },
     });
   }
 
-  // 5. Modifier un utilisateur
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<Omit<UserEntity, 'password'>> {
+  // 5. Modifier un utilisateur (ADMIN modifie tout, USER modifie uniquement son propre compte)
+  async update(id: number, updateUserDto: UpdateUserDto, currentUser: { id: number; role: Role }): Promise<Omit<UserEntity, 'password'>> {
+    // On appelle notre méthode findOne pour appliquer la validation d'accès (ADMIN ou Soi-même)
+    await this.findOne(id, currentUser);
+
     const user = await this.userRepository.findOneBy({ id });
     if (!user) {
       throw new NotFoundException(`L'utilisateur avec l'ID ${id} n'existe pas`);
@@ -86,8 +99,11 @@ export class UserService {
     return userWithoutPassword;
   }
 
-  // 6. Supprimer un utilisateur
-  async remove(id: number): Promise<{ message: string }> {
+  // 6. Supprimer un utilisateur (ADMIN supprime tout, USER supprime uniquement son propre compte)
+  async remove(id: number, currentUser: { id: number; role: Role }): Promise<{ message: string }> {
+    // On appelle notre méthode findOne pour appliquer la validation d'accès (ADMIN ou Soi-même)
+    await this.findOne(id, currentUser);
+
     const user = await this.userRepository.findOneBy({ id });
     if (!user) {
       throw new NotFoundException(`L'utilisateur avec l'ID ${id} n'existe pas`);
