@@ -6,11 +6,12 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 1. Activer le CORS (Indispensable pour ton Frontend React)
+  // 1. Activer le CORS de manière dynamique (Local + Production)
   app.enableCors({
     origin: [
       'http://localhost:5173',
-      'http://localhost:5174' // Ajoute l'URL actuelle de ton Frontend
+      'http://localhost:5174',
+      'https://ton-application-frontend.vercel.app' // 💡 Tu remplaceras par ton lien Vercel dès qu'on l'aura !
     ],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -34,17 +35,19 @@ async function bootstrap() {
         description: 'Entre ton jeton de connexion (access_token) ici',
         in: 'header',
       },
-      'JWT-auth', // Le nom du mécanisme de sécurité qu'on appliquera sur nos routes
+      'JWT-auth',
     )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-
-  // La documentation sera accessible sur http://localhost:3000/api/docs
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(3000);
-  console.log(`🚀 Le serveur tourne sur : http://localhost:3000`);
-  console.log(`📄 La documentation Swagger est disponible sur : http://localhost:3000/api/docs`);
+  // 4. Gestion dynamique du Port pour Render / Railway
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  
+  // Des logs de console plus propres en production
+  console.log(`🚀 Application s'exécute avec succès sur le port : ${port}`);
+  console.log(`📄 Si en local, Swagger dispo sur : http://localhost:${port}/api/docs`);
 }
 bootstrap();
