@@ -56,7 +56,7 @@ export default function WeatherWidget() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [inputVal,   setInputVal]   = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-  const { current, forecast, loading, error, city, setCity, refresh } = useWeather('Paris')
+  const { current, forecast, loading, error, setCity, refresh } = useWeather('Paris')
 
   const handleSearch = () => {
     const val = inputVal.trim()

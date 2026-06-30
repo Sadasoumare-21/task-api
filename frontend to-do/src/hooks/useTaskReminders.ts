@@ -43,8 +43,6 @@ export function useTaskReminders(tasks: Task[]) {
       // Si un timer existe déjà pour cette tâche, on ne le re-crée pas
       if (timersRef.current.has(task.id)) return
 
-      const minutesLeft = Math.round((dueMs - now) / 60000)
-
       const timerId = setTimeout(() => {
         const payload: ReminderPayload = {
           taskId: task.id,
