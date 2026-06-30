@@ -7,12 +7,17 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // 1. Activer le CORS de manière dynamique (Local + Production)
+  const origins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://task-api-one-blush.vercel.app' // Protocole complet pour éviter les rejets CORS
+  ];
+  if (process.env.FRONTEND_URL) {
+    origins.push(process.env.FRONTEND_URL);
+  }
+
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'https://ton-application-frontend.vercel.app' // 💡 Tu remplaceras par ton lien Vercel dès qu'on l'aura !
-    ],
+    origin: origins,
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept, Authorization',
@@ -48,6 +53,6 @@ async function bootstrap() {
   
   // Des logs de console plus propres en production
   console.log(`🚀 Application s'exécute avec succès sur le port : ${port}`);
-  console.log(`📄 Si en local, Swagger dispo sur : http://localhost:3000/api/docs`);
+  console.log(`📄 Si en local, Swagger dispo sur : http://localhost:${port}/api/docs`);
 }
 bootstrap(); 

@@ -1,7 +1,23 @@
 import type { TaskRowProps, TaskCategory } from '../../types'
+import {
+  WorkIcon,
+  PersonalIcon,
+  HealthIcon,
+  LearningIcon,
+  FinanceIcon,
+  ProjectIcon,
+  OtherIcon,
+  FireIcon
+} from '../ui/Icons'
 
-const CAT_ICON: Record<TaskCategory, string> = {
-  Travail:'🗂️', Personnel:'🌿', Sante:'❤️', Apprentissage:'📊', Finance:'💰', Projets:'📁', Autre:'📌',
+const CAT_ICON: Record<TaskCategory, React.ReactNode> = {
+  Travail: <WorkIcon size={14} />,
+  Personnel: <PersonalIcon size={14} />,
+  Sante: <HealthIcon size={14} />,
+  Apprentissage: <LearningIcon size={14} />,
+  Finance: <FinanceIcon size={14} />,
+  Projets: <ProjectIcon size={14} />,
+  Autre: <OtherIcon size={14} />,
 }
 const CAT_COLOR: Record<TaskCategory, string> = {
   Travail:'#7b8fff', Personnel:'#3ecf8e', Sante:'#f87171', Apprentissage:'#a78bfa', Finance:'#fbbf24', Projets:'#6366f1', Autre:'#94a3b8',
@@ -75,14 +91,15 @@ export default function TaskRow({ task, onToggle, onEdit, onDelete, onClick }: T
           padding:'5px 12px', borderRadius:99,
           background:`${color}14`, border:`1px solid ${color}30`,
         }}>
-          <span style={{ fontSize:14, lineHeight:1 }}>{CAT_ICON[task.category]}</span>
+          <span style={{ display:'flex', alignItems:'center' }}>{CAT_ICON[task.category]}</span>
           <span style={{ fontSize:12, fontWeight:600, color, letterSpacing:'-.01em' }}>{task.category}</span>
         </div>
 
         {/* Priority */}
         {urgent && (
-          <div style={{ padding:'4px 10px', borderRadius:99, background:'rgba(248,113,113,.1)', border:'1px solid rgba(248,113,113,.2)' }}>
-            <span style={{ fontSize:12, fontWeight:700, color:'var(--red)' }}>🔥 Urgent</span>
+          <div style={{ display:'flex', alignItems:'center', gap:4, padding:'4px 10px', borderRadius:99, background:'rgba(248,113,113,.1)', border:'1px solid rgba(248,113,113,.2)' }}>
+            <FireIcon size={12} color="var(--red)" />
+            <span style={{ fontSize:12, fontWeight:700, color:'var(--red)' }}>Urgent</span>
           </div>
         )}
 

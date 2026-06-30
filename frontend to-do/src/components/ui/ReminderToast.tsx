@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { REMINDER_EVENT, type ReminderPayload } from '../../hooks/useTaskReminders'
+import { ClockIcon, CloseIcon } from '../ui/Icons'
 
 interface ToastEntry {
   id: string     // taskId, sert aussi de clé unique
@@ -83,13 +84,15 @@ export default function ReminderToast() {
           {/* Icône */}
           <div
             style={{
-              fontSize: 22,
-              lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               marginTop: 2,
               flexShrink: 0,
+              color: '#fbbf24',
             }}
           >
-            ⏰
+            <ClockIcon size={22} />
           </div>
 
           {/* Contenu */}
@@ -152,7 +155,7 @@ export default function ReminderToast() {
               'rgba(255,255,255,.35)')
             }
           >
-            ✕
+            <CloseIcon size={12} />
           </button>
         </div>
       ))}

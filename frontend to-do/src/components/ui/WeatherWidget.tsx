@@ -1,27 +1,46 @@
 // src/components/ui/WeatherWidget.tsx
 import { useState, useRef } from 'react'
 import { useWeather } from '../../hooks/useWeather'
+import {
+  SunIcon,
+  CloudIcon,
+  RainIcon,
+  DrizzleIcon,
+  CloudLightningIcon,
+  SnowflakeIcon,
+  MistIcon,
+  TornadoIcon,
+  WindyIcon,
+  VolcanoIcon,
+  ThermometerIcon,
+  AlertIcon,
+  SearchIcon,
+  HumidityIcon,
+  WindIcon,
+  SunriseIcon,
+  SunsetIcon
+} from '../ui/Icons'
 
 // ─── Helpers visuels ──────────────────────────────────────────────────────────
 
-function getWeatherEmoji(condition: string): string {
-  const map: Record<string, string> = {
-    Clear:        '☀️',
-    Clouds:       '☁️',
-    Rain:         '🌧️',
-    Drizzle:      '🌦️',
-    Thunderstorm: '⛈️',
-    Snow:         '❄️',
-    Mist:         '🌫️',
-    Fog:          '🌫️',
-    Haze:         '🌫️',
-    Sand:         '🌪️',
-    Dust:         '💨',
-    Ash:          '🌋',
-    Squall:       '💨',
-    Tornado:      '🌪️',
+function getWeatherIcon(condition: string, size = 16, color = 'currentColor'): React.ReactNode {
+  const map: Record<string, React.ReactNode> = {
+    Clear:        <SunIcon size={size} color={color} />,
+    Clouds:       <CloudIcon size={size} color={color} />,
+    Rain:         <RainIcon size={size} color={color} />,
+    Drizzle:      <DrizzleIcon size={size} color={color} />,
+    Thunderstorm: <CloudLightningIcon size={size} color={color} />,
+    Snow:         <SnowflakeIcon size={size} color={color} />,
+    Mist:         <MistIcon size={size} color={color} />,
+    Fog:          <MistIcon size={size} color={color} />,
+    Haze:         <MistIcon size={size} color={color} />,
+    Sand:         <TornadoIcon size={size} color={color} />,
+    Dust:         <WindyIcon size={size} color={color} />,
+    Ash:          <VolcanoIcon size={size} color={color} />,
+    Squall:       <WindyIcon size={size} color={color} />,
+    Tornado:      <TornadoIcon size={size} color={color} />,
   }
-  return map[condition] ?? '🌡️'
+  return map[condition] ?? <ThermometerIcon size={size} color={color} />
 }
 
 function getWeatherGradient(condition: string): string {
@@ -96,7 +115,9 @@ export default function WeatherWidget() {
   if (error && !current) {
     return (
       <div className="weather-widget weather-error-state">
-        <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+        <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--red)', marginBottom: 12 }}>
+          <AlertIcon size={36} />
+        </div>
         <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--red)', marginBottom: 6 }}>
           Impossible de charger la météo
         </p>
@@ -110,8 +131,8 @@ export default function WeatherWidget() {
           </svg>
           Réessayer
         </button>
-        <button className="btn btn-ghost" style={{ fontSize: 12, padding: '8px 16px', marginTop: 6, gap: 6 }} onClick={openSearch}>
-          🔍 Autre ville
+        <button className="btn btn-ghost" style={{ fontSize: 12, padding: '8px 16px', marginTop: 6, gap: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={openSearch}>
+          <SearchIcon size={12} /> Autre ville
         </button>
       </div>
     )
@@ -188,7 +209,7 @@ export default function WeatherWidget() {
 
       {/* ── Température principale ───────────────────────────────────── */}
       <div className="weather-main">
-        <div className="weather-emoji">{getWeatherEmoji(current.condition)}</div>
+        <div className="weather-emoji" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{getWeatherIcon(current.condition, 48)}</div>
         <div className="weather-temp">{current.temperature}°</div>
         <div className="weather-desc">{capitalize(current.description)}</div>
         <div className="weather-feels">Ressenti {current.feelsLike}°C</div>
@@ -197,25 +218,25 @@ export default function WeatherWidget() {
       {/* ── Métriques ────────────────────────────────────────────────── */}
       <div className="weather-metrics">
         <div className="weather-metric">
-          <span className="weather-metric-icon">💧</span>
+          <span className="weather-metric-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><HumidityIcon size={16} /></span>
           <span className="weather-metric-val">{current.humidity}%</span>
           <span className="weather-metric-lbl">Humidité</span>
         </div>
         <div className="weather-metric-sep" />
         <div className="weather-metric">
-          <span className="weather-metric-icon">💨</span>
+          <span className="weather-metric-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><WindIcon size={16} /></span>
           <span className="weather-metric-val">{current.windSpeed} km/h</span>
           <span className="weather-metric-lbl">Vent</span>
         </div>
         <div className="weather-metric-sep" />
         <div className="weather-metric">
-          <span className="weather-metric-icon">🌅</span>
+          <span className="weather-metric-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><SunriseIcon size={16} /></span>
           <span className="weather-metric-val">{formatTime(current.sunrise)}</span>
           <span className="weather-metric-lbl">Lever</span>
         </div>
         <div className="weather-metric-sep" />
         <div className="weather-metric">
-          <span className="weather-metric-icon">🌇</span>
+          <span className="weather-metric-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><SunsetIcon size={16} /></span>
           <span className="weather-metric-val">{formatTime(current.sunset)}</span>
           <span className="weather-metric-lbl">Coucher</span>
         </div>
@@ -229,7 +250,9 @@ export default function WeatherWidget() {
             {forecast.map((day, i) => (
               <div key={i} className="weather-forecast-day">
                 <span className="weather-forecast-label">{i === 0 ? "Auj." : formatDay(day.date)}</span>
-                <span className="weather-forecast-icon">{getWeatherEmoji(day.condition)}</span>
+                <span className="weather-forecast-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {getWeatherIcon(day.condition, 16)}
+                </span>
                 <span className="weather-forecast-max">{day.tempMax}°</span>
                 <span className="weather-forecast-min">{day.tempMin}°</span>
               </div>

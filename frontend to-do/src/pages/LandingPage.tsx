@@ -1,4 +1,9 @@
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  TaskIcon, StatsIcon, HealthIcon, WorkIcon,
+  ZapIcon, TargetIcon, BellIcon, MoonIcon, SmartphoneIcon, RocketIcon,
+} from '../components/ui/Icons'
 
 function Logo({ size = 'md' }: { size?: 'sm'|'md'|'lg' }) {
   const s = size === 'sm' ? 30 : size === 'lg' ? 42 : 36
@@ -41,9 +46,9 @@ function Navbar() {
 
 function AppPreview() {
   const rows = [
-    { name:'Finaliser le rapport Q1', done:false, cat:'🗂️', urgent:true },
-    { name:'Seance de sport — cardio 30min', done:true, cat:'❤️', urgent:false },
-    { name:'Lire chapitre 4 de Clean Code', done:false, cat:'📊', urgent:false },
+    { name:'Finaliser le rapport Q1', done:false, cat:<WorkIcon size={15} color="#7b8fff" />, urgent:true },
+    { name:'Seance de sport — cardio 30min', done:true, cat:<HealthIcon size={15} color="#f87171" />, urgent:false },
+    { name:'Lire chapitre 4 de Clean Code', done:false, cat:<StatsIcon size={15} color="#34d399" />, urgent:false },
   ]
   return (
     <div style={{
@@ -66,10 +71,10 @@ function AppPreview() {
         <div style={{ width:156, flexShrink:0, padding:'16px 12px', borderRight:'1px solid rgba(255,255,255,.05)' }}>
           <p style={{ fontSize:10, fontWeight:700, color:'#1e2d45', textTransform:'uppercase', letterSpacing:'1px', padding:'0 6px', marginBottom:10 }}>Nav</p>
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:10, background:'rgba(91,115,245,.14)', color:'#7b8fff', fontSize:12, fontWeight:600, marginBottom:4 }}>
-            🗒️ Mes taches
+            <TaskIcon size={13} color="#7b8fff" /> Mes taches
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:10, color:'#3d5070', fontSize:12 }}>
-            📊 Statistiques
+            <StatsIcon size={13} color="#3d5070" /> Statistiques
           </div>
         </div>
         {/* Main */}
@@ -109,13 +114,13 @@ function AppPreview() {
 
 const STATS = [{n:'12k+',l:'Utilisateurs actifs'},{n:'98%',l:'Taux de satisfaction'},{n:'3.2M',l:'Taches completees'},{n:'4.9★',l:'Note moyenne'}]
 
-const FEATS = [
-  {icon:'⚡',t:'Organisation intelligente',d:'Categorisez vos taches par domaine, priorite et echeance pour une clarte totale.'},
-  {icon:'📊',t:'Statistiques en temps reel',d:'Visualisez votre productivite avec des graphiques dynamiques et des metriques avancees.'},
-  {icon:'🎯',t:'Suivi de progression',d:'Marquez vos taches comme terminees et suivez votre avancement au quotidien.'},
-  {icon:'🔔',t:'Rappels intelligents',d:'Definissez des heures precises pour ne plus jamais manquer une echeance.'},
-  {icon:'🌙',t:'Interface sombre elegante',d:'Un design pense pour les longues sessions de travail, confortable pour les yeux.'},
-  {icon:'📱',t:'100% Responsive',d:"Accedez a vos taches depuis n'importe quel appareil, a tout moment."},
+const FEATS: { icon: React.ReactNode; t: string; d: string }[] = [
+  {icon:<ZapIcon size={32} color="#fbbf24" />,t:'Organisation intelligente',d:'Categorisez vos taches par domaine, priorite et echeance pour une clarte totale.'},
+  {icon:<StatsIcon size={32} color="#34d399" />,t:'Statistiques en temps reel',d:'Visualisez votre productivite avec des graphiques dynamiques et des metriques avancees.'},
+  {icon:<TargetIcon size={32} color="#7b8fff" />,t:'Suivi de progression',d:'Marquez vos taches comme terminees et suivez votre avancement au quotidien.'},
+  {icon:<BellIcon size={32} color="#f97316" />,t:'Rappels intelligents',d:'Definissez des heures precises pour ne plus jamais manquer une echeance.'},
+  {icon:<MoonIcon size={32} color="#a78bfa" />,t:'Interface sombre elegante',d:'Un design pense pour les longues sessions de travail, confortable pour les yeux.'},
+  {icon:<SmartphoneIcon size={32} color="#22d3ee" />,t:'100% Responsive',d:"Accedez a vos taches depuis n'importe quel appareil, a tout moment."},
 ]
 
 export default function LandingPage() {
@@ -163,7 +168,7 @@ export default function LandingPage() {
 
           {/* CTAs */}
           <div className="fx-up delay-3" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:80, flexWrap:'wrap' }}>
-            <button className="btn btn-hero" onClick={() => nav('/register')}>🚀 Demarrer gratuitement</button>
+            <button className="btn btn-hero" onClick={() => nav('/register')} style={{ display:'inline-flex', alignItems:'center', gap:8 }}><RocketIcon size={16} color="#fff" /> Demarrer gratuitement</button>
             <button className="btn btn-ghost-hero" onClick={() => nav('/login')}>Se connecter</button>
           </div>
 
@@ -204,7 +209,7 @@ export default function LandingPage() {
             <div key={i} className="panel-sm" style={{ padding:36, transition:'transform .2s, border-color .2s', cursor:'default' }}
                  onMouseOver={e => { const d = e.currentTarget as HTMLDivElement; d.style.transform='translateY(-4px)'; d.style.borderColor='rgba(91,115,245,.25)' }}
                  onMouseOut={e  => { const d = e.currentTarget as HTMLDivElement; d.style.transform='translateY(0)';    d.style.borderColor='var(--line-2)' }}>
-              <div style={{ fontSize:40, marginBottom:20 }}>{f.icon}</div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-start', marginBottom:20 }}>{f.icon}</div>
               <h3 style={{ fontSize:16, fontWeight:700, color:'var(--t1)', marginBottom:10, letterSpacing:'-.02em' }}>{f.t}</h3>
               <p style={{ fontSize:14, color:'var(--t2)', lineHeight:1.7, fontWeight:400 }}>{f.d}</p>
             </div>

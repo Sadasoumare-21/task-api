@@ -1,4 +1,5 @@
 import type { TaskCardProps } from '../../types'
+import { PencilIcon, TrashIcon } from '../ui/Icons'
 
 const STATUS = {
   done:          { dot:'bg-[var(--accent)]',   label:'Terminee',  bg:'bg-[var(--accent)]/10 text-[var(--accent)]' },
@@ -40,10 +41,13 @@ export default function TaskCard({ task, onToggle, onEdit, onDelete, onClick }: 
             </span>
           </div>
         </div>
-        {/* Actions */}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-          <button onClick={() => onEdit(task)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-3)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors" title="Modifier">✎</button>
-          <button onClick={() => onDelete(task.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-3)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors" title="Supprimer">🗑</button>
+          <button onClick={() => onEdit(task)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-3)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors" title="Modifier">
+            <PencilIcon size={14} />
+          </button>
+          <button onClick={() => onDelete(task.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-3)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors" title="Supprimer">
+            <TrashIcon size={14} />
+          </button>
         </div>
       </div>
     </div>

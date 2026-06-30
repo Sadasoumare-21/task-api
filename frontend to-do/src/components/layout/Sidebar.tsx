@@ -4,9 +4,40 @@ import { useTasks } from '../../hooks/useTasks'
 import type { TaskCategory } from '../../types'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { fetchCurrentWeather, type WeatherData } from '../../services/weather.service'
+import {
+  WorkIcon,
+  PersonalIcon,
+  HealthIcon,
+  LearningIcon,
+  FinanceIcon,
+  ProjectIcon,
+  OtherIcon,
+  TaskIcon,
+  StatsIcon,
+  LogoutIcon,
+  ClockIcon,
+  HumidityIcon,
+  WindIcon,
+  SunriseIcon,
+  SunIcon,
+  CloudIcon,
+  RainIcon,
+  DrizzleIcon,
+  CloudLightningIcon,
+  SnowflakeIcon,
+  MistIcon,
+  MoonIcon,
+  AlertIcon
+} from '../ui/Icons'
 
-const CAT_ICON: Record<TaskCategory, string> = {
-  Travail:'🗂️', Personnel:'🌿', Sante:'❤️', Apprentissage:'📊', Finance:'💰', Projets:'📁', Autre:'📌',
+const CAT_ICON: Record<TaskCategory, React.ReactNode> = {
+  Travail: <WorkIcon size={15} />,
+  Personnel: <PersonalIcon size={15} />,
+  Sante: <HealthIcon size={15} />,
+  Apprentissage: <LearningIcon size={15} />,
+  Finance: <FinanceIcon size={15} />,
+  Projets: <ProjectIcon size={15} />,
+  Autre: <OtherIcon size={15} />,
 }
 const CAT_COLOR: Record<TaskCategory, string> = {
   Travail:'#7b8fff', Personnel:'#3ecf8e', Sante:'#f87171', Apprentissage:'#a78bfa', Finance:'#fbbf24', Projets:'#6366f1', Autre:'#94a3b8',
@@ -49,7 +80,7 @@ export default function Sidebar() {
       <nav style={{ flex:1, overflowY:'auto', padding:'16px 12px' }}>
         <div style={{ marginBottom:6 }}>
           <NavLink to="/dashboard" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <span style={{ fontSize:18, lineHeight:1, flexShrink:0 }}>🗒️</span>
+            <span style={{ display:'flex', alignItems:'center', flexShrink:0 }}><TaskIcon size={18} /></span>
             <span style={{ flex:1 }}>Mes taches</span>
             {stats.pending > 0 && (
               <span className="cat-badge active">{stats.pending}</span>
@@ -58,7 +89,7 @@ export default function Sidebar() {
         </div>
         <div style={{ marginBottom:20 }}>
           <NavLink to="/dashboard/stats" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <span style={{ fontSize:18, lineHeight:1, flexShrink:0 }}>📊</span>
+            <span style={{ display:'flex', alignItems:'center', flexShrink:0 }}><StatsIcon size={18} /></span>
             <span style={{ flex:1 }}>Statistiques</span>
           </NavLink>
         </div>
@@ -76,7 +107,7 @@ export default function Sidebar() {
             return (
               <button key={cat} className={`nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => { setFilters({ category: isActive ? 'all' : cat }); navigate('/dashboard') }}>
-                <span style={{ fontSize:17, lineHeight:1, flexShrink:0 }}>{CAT_ICON[cat]}</span>
+                <span style={{ display:'flex', alignItems:'center', flexShrink:0 }}>{CAT_ICON[cat]}</span>
                 <span style={{ flex:1 }}>{cat}</span>
                 {n > 0 && (
                   <span className={`cat-badge ${isActive ? 'active' : ''}`}
@@ -99,7 +130,7 @@ export default function Sidebar() {
           onClick={() => { logout(); navigate('/') }}
           onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.color='var(--red)' }}
           onMouseOut={e  => { (e.currentTarget as HTMLButtonElement).style.color='var(--t3)' }}>
-          <span style={{ fontSize:17 }}>↩</span>
+          <span style={{ display:'flex', alignItems:'center', flexShrink:0 }}><LogoutIcon size={17} /></span>
           <span>Déconnexion</span>
         </button>
       </div>
@@ -111,9 +142,21 @@ export default function Sidebar() {
    SidebarWeather — widget météo compact intégré dans la sidebar
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const WEATHER_EMOJI: Record<string, string> = {
-  Clear:'☀️', Clouds:'☁️', Rain:'🌧️', Drizzle:'🌦️',
-  Thunderstorm:'⛈️', Snow:'❄️', Mist:'🌫️', Fog:'🌫️', Haze:'🌫️',
+const getWeatherIcon = (condition: string, iconName?: string) => {
+  if (condition === 'Clear') {
+    return iconName?.endsWith('n') ? <MoonIcon size={28} /> : <SunIcon size={28} />
+  }
+  const map: Record<string, React.ReactNode> = {
+    Clouds: <CloudIcon size={28} />,
+    Rain: <RainIcon size={28} />,
+    Drizzle: <DrizzleIcon size={28} />,
+    Thunderstorm: <CloudLightningIcon size={28} />,
+    Snow: <SnowflakeIcon size={28} />,
+    Mist: <MistIcon size={28} />,
+    Fog: <MistIcon size={28} />,
+    Haze: <MistIcon size={28} />,
+  }
+  return map[condition] ?? <SunIcon size={28} />
 }
 
 const WEATHER_GRADIENT: Record<string, string> = {
@@ -215,7 +258,9 @@ function SidebarWeather() {
         {/* ── Erreur ── */}
         {error && !loading && (
           <div style={{ padding:'16px', textAlign:'center' }}>
-            <div style={{ fontSize:22, marginBottom:6 }}>⚠️</div>
+            <div style={{ display:'flex', justifyContent:'center', color:'var(--red)', marginBottom:6 }}>
+              <AlertIcon size={22} />
+            </div>
             <p style={{ fontSize:11, color:'var(--red)', marginBottom:8 }}>Ville introuvable</p>
             <button onClick={openEdit} style={{
               fontSize:11, color:'rgba(255,255,255,.5)', background:'rgba(255,255,255,.06)',
@@ -245,8 +290,8 @@ function SidebarWeather() {
                   {data.city}, {data.country}
                 </button>
                 {localTime && (
-                  <span style={{ fontSize:9.5, color:'rgba(255,255,255,.45)', marginTop:2, marginLeft:15 }}>
-                    🕒 Heure locale : {localTime}
+                  <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:9.5, color:'rgba(255,255,255,.45)', marginTop:2, marginLeft:15 }}>
+                    <ClockIcon size={10} color="rgba(255,255,255,.45)" /> Heure locale : {localTime}
                   </span>
                 )}
               </div>
@@ -268,8 +313,8 @@ function SidebarWeather() {
 
             {/* Température + emoji */}
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-              <span style={{ fontSize:32, lineHeight:1 }}>
-                {data.condition === 'Clear' && data.icon?.endsWith('n') ? '🌙' : (WEATHER_EMOJI[data.condition] ?? '🌡️')}
+              <span style={{ display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', width:28, height:28 }}>
+                {getWeatherIcon(data.condition, data.icon)}
               </span>
               <div>
                 <div style={{ fontSize:30, fontWeight:800, color:'#fff', lineHeight:1, letterSpacing:'-1px' }}>
@@ -287,15 +332,15 @@ function SidebarWeather() {
               gap:6, marginTop:10,
             }}>
               {[
-                { icon:'💧', val:`${data.humidity}%`,       lbl:'Humidité' },
-                { icon:'💨', val:`${data.windSpeed} km/h`,  lbl:'Vent' },
+                { icon: <HumidityIcon size={14} color="rgba(255,255,255,.7)" />, val:`${data.humidity}%`,       lbl:'Humidité' },
+                { icon: <WindIcon size={14} color="rgba(255,255,255,.7)" />, val:`${data.windSpeed} km/h`,  lbl:'Vent' },
               ].map(m => (
                 <div key={m.lbl} style={{
                   background:'rgba(0,0,0,.2)',
                   borderRadius:10, padding:'8px 10px',
                   border:'1px solid rgba(255,255,255,.06)',
                 }}>
-                  <div style={{ fontSize:14, marginBottom:2 }}>{m.icon}</div>
+                  <div style={{ display:'flex', alignItems:'center', marginBottom:4 }}>{m.icon}</div>
                   <div style={{ fontSize:12, fontWeight:700, color:'rgba(255,255,255,.9)' }}>{m.val}</div>
                   <div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginTop:1 }}>{m.lbl}</div>
                 </div>
@@ -310,7 +355,9 @@ function SidebarWeather() {
               display:'flex', justifyContent:'space-between',
             }}>
               <span>Ressenti {data.feelsLike}°C</span>
-              <span>🌅 Lever : {new Date(data.sunrise*1000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <SunriseIcon size={12} color="rgba(255,255,255,.5)" /> Lever : {new Date(data.sunrise*1000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+              </span>
             </div>
           </div>
         )}
