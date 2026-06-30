@@ -48,6 +48,6 @@ async function bootstrap() {
   
   // Des logs de console plus propres en production
   console.log(`🚀 Application s'exécute avec succès sur le port : ${port}`);
-  console.log(`📄 Si en local, Swagger dispo sur : http://localhost:${port}/api/docs`);
+  console.log(`📄 Si en local, Swagger dispo sur : http://localhost:3000/api/docs`);
 }
-bootstrap();
+bootstrap(); 
