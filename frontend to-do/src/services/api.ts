@@ -6,7 +6,7 @@ import axios from 'axios';
 export const USE_MOCK = false;
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000', // L'adresse de ton Backend NestJS
+  baseURL: import.meta.env.VITE_API_URL || 'https://localhost:3000', // L'adresse de ton Backend NestJS
   headers: {
     'Content-Type': 'application/json',
   },
