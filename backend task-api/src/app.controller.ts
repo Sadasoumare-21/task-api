@@ -5,8 +5,14 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  // 🟢 Health check endpoint — utilisé par Render pour vérifier que l'app est vivante
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  healthCheck(): object {
+    return {
+      status: 'OK',
+      message: '🚀 TaskFlow API est opérationnelle !',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    };
   }
 }

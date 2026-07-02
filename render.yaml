@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: taskflow-backend
+    runtime: node
+    plan: free
+    rootDir: backend task-api
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_HOST
+        sync: false
+      - key: DATABASE_PORT
+        sync: false
+      - key: DATABASE_USER
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: DATABASE_NAME
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://task-api-one-blush.vercel.app
