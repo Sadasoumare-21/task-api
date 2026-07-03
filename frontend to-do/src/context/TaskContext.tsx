@@ -85,29 +85,33 @@ interface State {
   user: User | null
   isAuthenticated: boolean
   loading: boolean
+  // 🔐 true tant que la restauration de session initiale n'est pas terminée
+  authLoading: boolean
 }
 
 type Action =
-  | { type: 'SET_TASKS';    payload: Task[] }
-  | { type: 'ADD_TASK';     payload: Task }
-  | { type: 'UPDATE_TASK';  payload: Task }
-  | { type: 'DELETE_TASK';  payload: string }
-  | { type: 'SET_FILTERS';  payload: Partial<TaskFilters> }
-  | { type: 'LOGIN';        payload: User }
+  | { type: 'SET_TASKS';       payload: Task[] }
+  | { type: 'ADD_TASK';        payload: Task }
+  | { type: 'UPDATE_TASK';     payload: Task }
+  | { type: 'DELETE_TASK';     payload: string }
+  | { type: 'SET_FILTERS';     payload: Partial<TaskFilters> }
+  | { type: 'LOGIN';           payload: User }
   | { type: 'LOGOUT' }
-  | { type: 'SET_LOADING';  payload: boolean }
+  | { type: 'SET_LOADING';     payload: boolean }
+  | { type: 'SET_AUTH_LOADING'; payload: boolean }
 
 function reducer(s: State, a: Action): State {
   switch (a.type) {
-    case 'SET_TASKS':   return { ...s, tasks: a.payload, loading: false }
-    case 'ADD_TASK':    return { ...s, tasks: [a.payload, ...s.tasks] }
-    case 'UPDATE_TASK': return { ...s, tasks: s.tasks.map(t => t.id === a.payload.id ? a.payload : t) }
-    case 'DELETE_TASK': return { ...s, tasks: s.tasks.filter(t => t.id !== a.payload) }
-    case 'SET_FILTERS': return { ...s, filters: { ...s.filters, ...a.payload } }
-    case 'LOGIN':       return { ...s, user: a.payload, isAuthenticated: true }
-    case 'LOGOUT':      return { ...s, user: null, isAuthenticated: false, tasks: [], loading: false }
-    case 'SET_LOADING': return { ...s, loading: a.payload }
-    default:            return s
+    case 'SET_TASKS':        return { ...s, tasks: a.payload, loading: false }
+    case 'ADD_TASK':         return { ...s, tasks: [a.payload, ...s.tasks] }
+    case 'UPDATE_TASK':      return { ...s, tasks: s.tasks.map(t => t.id === a.payload.id ? a.payload : t) }
+    case 'DELETE_TASK':      return { ...s, tasks: s.tasks.filter(t => t.id !== a.payload) }
+    case 'SET_FILTERS':      return { ...s, filters: { ...s.filters, ...a.payload } }
+    case 'LOGIN':            return { ...s, user: a.payload, isAuthenticated: true }
+    case 'LOGOUT':           return { ...s, user: null, isAuthenticated: false, tasks: [], loading: false, authLoading: false }
+    case 'SET_LOADING':      return { ...s, loading: a.payload }
+    case 'SET_AUTH_LOADING': return { ...s, authLoading: a.payload }
+    default:                 return s
   }
 }
 
@@ -117,6 +121,8 @@ const INIT: State = {
   user: null,
   isAuthenticated: false,
   loading: false,
+  // 🔐 Démarre à true — sera mis à false dès la fin de la restauration de session
+  authLoading: true,
 }
 
 interface Ctx extends State {
@@ -127,6 +133,8 @@ interface Ctx extends State {
   setFilters: (f: Partial<TaskFilters>) => void
   login:      (u: User) => void
   logout:     () => void
+  // 🔐 true pendant la restauration de session initiale
+  authLoading: boolean
 }
 
 const Ctx = createContext<Ctx | null>(null)
@@ -137,9 +145,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   // ── Rappels automatiques avant échéance ───────────────────────────────────
   useTaskReminders(state.tasks)
 
+  // 🔐 Restauration de session au démarrage
   useEffect(() => {
     const token = localStorage.getItem('token')
-    if (!token) return
+
+    if (!token) {
+      // Pas de token : on termine l'init immédiatement
+      dispatch({ type: 'SET_AUTH_LOADING', payload: false })
+      return
+    }
 
     try {
       const payloadBase64 = token.split('.')[1]
@@ -151,7 +165,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
       const isExpired = payload.exp * 1000 < Date.now()
       if (isExpired) {
+        // Token expiré côté client : nettoyage immédiat
         localStorage.removeItem('token')
+        dispatch({ type: 'SET_AUTH_LOADING', payload: false })
         return
       }
 
@@ -163,17 +179,31 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
       dispatch({ type: 'LOGIN', payload: restoredUser })
     } catch {
+      // Token malformé : nettoyage
       localStorage.removeItem('token')
+    } finally {
+      // Dans tous les cas, l'init est terminée
+      dispatch({ type: 'SET_AUTH_LOADING', payload: false })
     }
   }, [])
 
+  // 🔐 Intercepteur 401 : déconnexion automatique + redirect (hors routes d'auth)
   useEffect(() => {
     const interceptorId = api.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          localStorage.removeItem('token')
-          dispatch({ type: 'LOGOUT' })
+          const requestUrl: string = error.config?.url ?? ''
+          // Éviter la boucle infinie si le 401 vient des routes d'authentification
+          const isAuthRoute = requestUrl.includes('/auth/login') ||
+                              requestUrl.includes('/auth/register')
+
+          if (!isAuthRoute) {
+            localStorage.removeItem('token')
+            dispatch({ type: 'LOGOUT' })
+            // Redirection propre hors de React pour éviter les conflits de routeur
+            window.location.href = '/login'
+          }
         }
         return Promise.reject(error)
       },
@@ -326,6 +356,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         setFilters,
         login,
         logout,
+        authLoading: state.authLoading,
       }}
     >
       {children}

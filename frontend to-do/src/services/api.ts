@@ -12,7 +12,7 @@ const api = axios.create({
   },
 });
 
-// Intercepteur pour injecter automatiquement le token dans toutes les futures requêtes
+// Intercepteur REQUEST : injecte automatiquement le token dans toutes les requêtes
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token && config.headers) {
@@ -20,5 +20,30 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Intercepteur RESPONSE : gère les erreurs 401 (token invalide / expiré)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const requestUrl: string = error.config?.url ?? '';
+
+      // Éviter la boucle infinie si le 401 vient des routes d'authentification elles-mêmes
+      const isAuthRoute = requestUrl.includes('/auth/login') ||
+                          requestUrl.includes('/auth/register');
+
+      if (!isAuthRoute) {
+        // Nettoyage du token invalide
+        localStorage.removeItem('token');
+        // Redirection propre vers la page de login
+        // (window.location évite les conflits avec le routeur React)
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

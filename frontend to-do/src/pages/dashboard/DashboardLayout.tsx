@@ -3,8 +3,35 @@ import { useTaskContext } from '../../context/TaskContext'
 import Sidebar from '../../components/layout/Sidebar'
 
 export default function DashboardLayout() {
-  const { isAuthenticated, user, logout } = useTaskContext()
+  const { isAuthenticated, authLoading, user, logout } = useTaskContext()
   const navigate = useNavigate()
+
+  // 🔐 Attendre la fin de la restauration de session avant de juger si l'user est connecté
+  if (authLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--canvas)',
+        flexDirection: 'column',
+        gap: 16,
+      }}>
+        <div style={{
+          width: 40,
+          height: 40,
+          border: '3px solid rgba(91,115,245,.2)',
+          borderTopColor: '#6b7fff',
+          borderRadius: '50%',
+          animation: 'spin-slow .8s linear infinite',
+        }} />
+        <span style={{ color: 'var(--t3)', fontSize: 14, fontWeight: 500 }}>Chargement…</span>
+      </div>
+    )
+  }
+
+  // ✔️ Init terminée : rediriger seulement si vraiment non-authentifié
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
   return (
