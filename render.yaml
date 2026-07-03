@@ -25,4 +25,4 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
-        value: https://task-api-one-blush.vercel.app
+        value: https://task-ea7k4cwvm-sadasoumare-21.vercel.app

@@ -8,11 +8,11 @@ async function bootstrap() {
 
   // 1. Activer le CORS de manière dynamique (Local + Production)
   const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'https://task-api-one-blush.vercel.app', // Frontend Vercel production
-  ];
-
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'https://task-ea7k4cwvm-sadasoumare-21.vercel.app'
+];
   // Ajouter dynamiquement l'URL frontend depuis les variables d'environnement
   if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
@@ -65,4 +65,4 @@ async function bootstrap() {
   console.log(`📄 Swagger disponible sur : http://localhost:${port}/api/docs`);
   console.log(`🌐 Environnement : ${process.env.NODE_ENV || 'development'}`);
 }
-bootstrap();
+bootstrap();
