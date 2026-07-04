@@ -7,31 +7,42 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // 1. Activer le CORS de manière dynamique (Local + Production)
-  const allowedOrigins = [
+ // 1. Activer le CORS de manière dynamique (Local + Production)
+const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
   'https://task-ea7k4cwvm-sadasoumare-21.vercel.app'
 ];
-  // Ajouter dynamiquement l'URL frontend depuis les variables d'environnement
-  if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL);
-  }
 
-  app.enableCors({
-    origin: (origin, callback) => {
-      // Accepter les requêtes sans origin (Postman, mobile) + les origins autorisées
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-        callback(null, true);
-      } else {
-        console.warn(`[CORS] Requête bloquée depuis : ${origin}`);
-        callback(new Error('Non autorisé par CORS'), false);
-      }
-    },
-    credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
-  });
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+app.enableCors({
+  origin: (origin, callback) => {
+    // 1. Autoriser les requêtes sans origine (Postman, outils internes)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // 2. Vérifier si l'origine est explicitement dans la liste
+    const isAllowed = allowedOrigins.includes(origin);
+
+    // 3. Vérifier si c'est un sous-domaine de vercel.app
+    const isVercel = origin.startsWith('https://') && origin.endsWith('.vercel.app');
+
+    if (isAllowed || isVercel) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Requête bloquée depuis : ${origin}`);
+      callback(new Error('Non autorisé par CORS'), false);
+    }
+  },
+  credentials: true,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: 'Content-Type, Accept, Authorization',
+});
 
   // 2. Validation globale des DTOs
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
