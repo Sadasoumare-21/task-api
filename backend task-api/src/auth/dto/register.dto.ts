@@ -14,7 +14,6 @@ export class RegisterDto {
   @IsNotEmpty()
   password!: string;
 
-  @ApiProperty({ example: 'ADMIN', description: 'Le rôle de l\'utilisateur (optionnel)', enum: Role, required: false })
   @IsOptional()
   @IsEnum(Role, { message: 'Le rôle spécifié est invalide' })
   role?: Role;
